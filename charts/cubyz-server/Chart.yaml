@@ -1,0 +1,20 @@
+apiVersion: v2
+name: cubyz-server
+description: Helm chart for running a dedicated Cubyz voxel game server on Kubernetes
+type: application
+version: 0.1.0
+# appVersion is dynamically set at package time from the latest git tag by helm-release.yml.
+# This value is only used for local development; CI overrides it with --app-version.
+# Users can also override per-install with: --set image.tag=v1.2.3
+appVersion: "0.0.0-dev"
+home: https://github.com/PixelGuys/Cubyz
+sources:
+  - https://github.com/PixelGuys/Cubyz
+keywords:
+  - cubyz
+  - game-server
+  - voxel
+  - minecraft-like
+maintainers:
+  - name: Cubyz contributors
+    url: https://github.com/PixelGuys/Cubyz

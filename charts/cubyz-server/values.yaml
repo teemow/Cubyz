@@ -1,0 +1,156 @@
+# Default values for cubyz-server.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/pixelguys/cubyz-server
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  # The Cubyz server does not need Kubernetes API access.
+  automount: false
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template.
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# World configuration baked into launchConfig.zon
+world:
+  # Name of the save directory under <cubyzDir>/saves/<name>
+  name: world
+  # Asset preset used when creating a world
+  preset: "cubyz:default"
+  # World seed used when auto-creating a world. Leave empty for a random seed.
+  # Provide as a string to avoid YAML number precision loss for large u64 values.
+  seed: ""
+  # When true (and the save does not exist yet) bootstrap a fresh world on startup.
+  createIfMissing: true
+  # Authentication algorithm used by the server. Leave empty to keep the default (ed25519).
+  preferredAuthenticationAlgorithm: ""
+
+# Persistent storage for /data (saves, configs, generated assets)
+persistence:
+  enabled: true
+  # Mount path inside the container; matches launchConfig.cubyzDir.
+  mountPath: /data
+  size: 10Gi
+  # If empty the cluster default StorageClass is used.
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  annotations: {}
+
+service:
+  # One of: ClusterIP, NodePort, LoadBalancer
+  type: LoadBalancer
+  # External port exposed by the Service (UDP). Defaults to the Cubyz default port.
+  port: 47649
+  # When type is NodePort, optionally pin the node port (must be in the cluster's nodePort range).
+  nodePort: ""
+  # Preserves client source IPs and avoids extra hops on LoadBalancer/NodePort.
+  externalTrafficPolicy: Local
+  # Optional fixed LoadBalancer IP (cloud-provider dependent).
+  loadBalancerIP: ""
+  # Restrict which CIDRs may reach a LoadBalancer Service.
+  loadBalancerSourceRanges: []
+  annotations: {}
+
+# Use host networking instead of a Service. Useful for low-latency dedicated boxes.
+# When enabled the Service template is skipped and dnsPolicy is set to ClusterFirstWithHostNet.
+hostNetwork:
+  enabled: false
+
+# Container port (UDP). Cubyz listens on settings.defaultPort = 47649.
+containerPort: 47649
+
+resources:
+  limits:
+    cpu: "2"
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+# Liveness and readiness probes for the UDP server.
+# UDP cannot be probed via tcpSocket; the chart emits an exec probe that checks
+# /proc/net/udp{,6} for the server's listening port (computed from .Values.containerPort).
+# Override `exec.command` to use a custom probe.
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+  exec:
+    command: []
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 10
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 3
+  exec:
+    command: []
+
+# Pod disruption budget. Off by default since the chart deploys a single replica.
+podDisruptionBudget:
+  enabled: false
+  maxUnavailable: 1
+
+# Additional environment variables passed to the server container.
+extraEnv: []
+# - name: CUBYZ_LOG_LEVEL
+#   value: info
+
+# Extra container args passed to /app/Cubyz.
+extraArgs: []
+
+priorityClassName: ""
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Termination grace period - give the server time to flush chunks on SIGTERM.
+terminationGracePeriodSeconds: 60
+
+# StatefulSet update strategy
+updateStrategy:
+  type: RollingUpdate
+
+# Optional NetworkPolicy to restrict pod traffic.
+networkPolicy:
+  enabled: false
+  # CIDRs allowed to reach the UDP game port. Defaults to the world.
+  ingressCIDRs:
+    - 0.0.0.0/0

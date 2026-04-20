@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cubyz-server.fullname" . }}-config
+  labels:
+    {{- include "cubyz-server.labels" . | nindent 4 }}
+data:
+  launchConfig.zon: |
+    .{
+        .cubyzDir = {{ .Values.persistence.mountPath | quote }},
+        .autoEnterWorld = {{ .Values.world.name | quote }},
+        .headlessServer = true,
+        {{- if .Values.world.preferredAuthenticationAlgorithm }}
+        .preferredAuthenticationAlgorithm = .{{ .Values.world.preferredAuthenticationAlgorithm }},
+        {{- end }}
+        .createIfMissing = {{ .Values.world.createIfMissing }},
+        {{- with .Values.world.seed }}
+        .worldSeed = {{ . }},
+        {{- end }}
+        .worldPreset = {{ .Values.world.preset | quote }},
+    }

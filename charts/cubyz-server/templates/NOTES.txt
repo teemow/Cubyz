@@ -1,0 +1,58 @@
+Cubyz dedicated server "{{ include "cubyz-server.fullname" . }}" has been deployed.
+
+World: {{ .Values.world.name | quote }} (preset: {{ .Values.world.preset | quote }})
+{{- if .Values.world.createIfMissing }}
+The world is created automatically on first start if it does not exist yet.
+{{- end }}
+
+1. Connect from a Cubyz desktop client
+{{- if .Values.hostNetwork.enabled }}
+
+   Host networking is enabled; connect directly to any node running the pod:
+
+     udp://<node-ip>:{{ .Values.containerPort }}
+{{- else if eq .Values.service.type "LoadBalancer" }}
+
+   It may take a moment for the LoadBalancer IP/hostname to be assigned.
+   Watch for it with:
+
+     kubectl --namespace {{ .Release.Namespace }} get svc {{ include "cubyz-server.fullname" . }} -w
+
+   Once the EXTERNAL-IP is set:
+
+     export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "cubyz-server.fullname" . }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+     echo "udp://${SERVICE_IP}:{{ .Values.service.port }}"
+{{- else if eq .Values.service.type "NodePort" }}
+
+   export NODE_PORT=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "cubyz-server.fullname" . }} -o jsonpath='{.spec.ports[0].nodePort}')
+   export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath='{.items[0].status.addresses[0].address}')
+   echo "udp://${NODE_IP}:${NODE_PORT}"
+{{- else }}
+
+   ClusterIP services are only reachable from inside the cluster. UDP cannot be
+   forwarded with `kubectl port-forward`. Switch service.type to NodePort or
+   LoadBalancer (or enable hostNetwork) to expose the server externally:
+
+     helm upgrade --install {{ .Release.Name }} cubyz-server --set service.type=LoadBalancer
+{{- end }}
+
+2. Make yourself an administrator
+
+   The server starts with no admins. Connect once with your client (note your
+   player index from the server logs or the in-game `/list` command), then have
+   any account already in the `whitelist` group run:
+
+     /perm add whitelist @<your playerIndex> /
+
+   The first player to connect is typically granted the bootstrap admin role
+   via the server console; consult the Cubyz docs for the exact procedure.
+
+3. Persistent data
+
+{{- if .Values.persistence.enabled }}
+   World saves are stored on a {{ .Values.persistence.size }} PersistentVolume mounted at
+   {{ .Values.persistence.mountPath | quote }} (PVC: data-{{ include "cubyz-server.fullname" . }}-0).
+{{- else }}
+   WARNING: persistence is disabled. World saves live in an emptyDir and will be
+   lost when the pod restarts. Set persistence.enabled=true for production.
+{{- end }}
