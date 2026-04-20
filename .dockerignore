@@ -1,0 +1,43 @@
+# Keep build context small and avoid leaking host artifacts into the image.
+
+# Build outputs
+zig-out/
+.zig-cache/
+zig-cache/
+zig-pkg/
+compiler/
+
+# Local launch config (image ships its own headless config)
+launchConfig.zon
+
+# VCS / editor / CI metadata
+.git/
+.github/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs and ad-hoc files
+logs/
+*.log
+test.png
+gamecontrollerdb.txt
+gamecontrollerdb.stamp
+serverAssets/
+
+# Docs and meta files (not needed at runtime or for build)
+docs/
+README.md
+LICENSE
+
+# Helm chart / k8s manifests are not used by the image build
+charts/
+
+# Note: binaries/ is intentionally NOT ignored so Dockerfile.release can pick
+# up the pre-built static binaries dropped there by the release workflow.
+
+# Avoid recursive context blow-up
+**/.DS_Store

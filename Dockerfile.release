@@ -1,0 +1,57 @@
+# syntax=docker/dockerfile:1.7
+#
+# Cubyz dedicated server image (release / multi-arch)
+#
+# Consumes pre-built static binaries produced by the docker-release workflow
+# and wraps them in the same Alpine runtime used by the build-from-source
+# Dockerfile. Avoids running Zig under QEMU during multi-arch buildx pushes.
+#
+# Expected layout next to this file at build time:
+#   binaries/Cubyz_linux_amd64
+#   binaries/Cubyz_linux_arm64
+#   assets/cubyz/...
+
+ARG ALPINE_VERSION=3.21
+
+FROM alpine:${ALPINE_VERSION}
+
+ARG TARGETARCH
+ARG VERSION="0.0.0-dev"
+
+LABEL org.opencontainers.image.title="cubyz-server" \
+      org.opencontainers.image.description="Headless Cubyz dedicated server" \
+      org.opencontainers.image.source="https://github.com/PixelGuys/Cubyz" \
+      org.opencontainers.image.licenses="GPL-3.0-or-later" \
+      org.opencontainers.image.version="${VERSION}"
+
+RUN apk add --no-cache \
+        ca-certificates \
+        iproute2 \
+        tini \
+    && addgroup -g 1000 cubyz \
+    && adduser -D -u 1000 -G cubyz -h /app cubyz \
+    && mkdir -p /data \
+    && chown -R cubyz:cubyz /app /data
+
+WORKDIR /app
+
+COPY --chown=cubyz:cubyz binaries/Cubyz_linux_${TARGETARCH} /app/Cubyz
+COPY --chown=cubyz:cubyz assets/cubyz /app/assets/cubyz
+
+RUN chmod +x /app/Cubyz \
+    && printf '%s\n' \
+        '.{' \
+        '    .cubyzDir = "/data",' \
+        '    .autoEnterWorld = "world",' \
+        '    .headlessServer = true,' \
+        '    .createIfMissing = true,' \
+        '    .worldPreset = "cubyz:default",' \
+        '}' > /app/launchConfig.zon \
+    && chown cubyz:cubyz /app/launchConfig.zon
+
+USER cubyz
+
+VOLUME ["/data"]
+EXPOSE 47649/udp
+
+ENTRYPOINT ["/sbin/tini", "--", "/app/Cubyz"]
